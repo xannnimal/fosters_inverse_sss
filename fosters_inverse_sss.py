@@ -68,7 +68,7 @@ def _do_inverse(raw,N):
     data_fosters = np.real(S[:, :n_use_in]@x_bar[:n_use_in,:])
     return data_fosters
     
-def fosters_inverse(raw, tmin, tmax):
+def fosters_inverse(raw, Ntmin, Ntmax):
     """
     Parameters
     ----------
@@ -84,7 +84,7 @@ def fosters_inverse(raw, tmin, tmax):
         are dropped
     """
     ## calculate sensor noise covariance
-    N = mne.compute_raw_covariance(raw,tmin,tmax,rank="info",method='empirical')["data"]
+    N = mne.compute_raw_covariance(raw,Ntmin,Ntmax,rank="info",method='empirical')["data"]
     ## drop bad channels 
     bads = raw.info["bads"]
     raw.drop_channels(bads)
@@ -120,12 +120,12 @@ if __name__ == '__main__':
     ## high and low - pass raw data
     freq_min = 0.1
     freq_max = 50
-    tmin = None
-    tmax = None
+    Ntmin = None
+    Ntmax = None
     raw.load_data().filter(l_freq=freq_min, h_freq=freq_max)
 
     ## call Foster's inverse
-    raw_fos = fosters_inverse(raw)
+    raw_fos = fosters_inverse(raw,Ntmin,Ntmax)
     
     ## calculate and plot evoked 
     tmin = -0.1  # start of each epoch (200ms before the trigger)
