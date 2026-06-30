@@ -23,9 +23,10 @@ import os
 import numpy as np
 import mne
 import mne.utils
+import sklearn
 
 # --- Functions ------------------------------------------------------------
-def _do_inverse(raw,N):
+def _do_inverse(raw,N,ntype):
     """
     Parameters
     ----------
@@ -34,6 +35,9 @@ def _do_inverse(raw,N):
     N : 2D square matrix, (number of sensors) X (number of sensors)
         Sensor noise covariance matrix, calculated using empircial covariance
         implemented in mne.compute_raw_covariance
+    ntype: string
+        'E' for Emprical sensor noise covariance
+        'OTP' for estimating sensor noise covariance using OTP
 
     Returns
     -------
@@ -47,10 +51,11 @@ def _do_inverse(raw,N):
     [S, pS, reg_moments, n_use_in]=mne.preprocessing.compute_maxwell_basis(raw.info, origin=(0.,0.,0.), int_order=8, ext_order=3, calibration=None, coord_frame='meg', regularize=None, ignore_ref=True, bad_condition='error', mag_scale=100.0, extended_proj=(), verbose=None)
     
     ## setup Foster's Inverse- calculate Matrix B and vector b
-    S = S[:, :n_use_in]
-    XN = pS[:n_use_in,:] @ phi_0
-    ## for full S
-    # XN = pS @ phi_0
+    if ntype=='E': #only use internal S
+        S = S[:, :n_use_in]
+        XN = pS[:n_use_in,:] @ phi_0
+    if ntype =='OTP':
+        XN = pS @ phi_0
     alpha = np.transpose(XN)
     alpha_cov_norm = np.cov(XN)
     S_star = np.transpose(np.conj(S))
@@ -68,12 +73,18 @@ def _do_inverse(raw,N):
     data_fosters = np.real(S[:, :n_use_in]@x_bar[:n_use_in,:])
     return data_fosters
     
-def fosters_inverse(raw, Ntmin, Ntmax):
+def fosters_inverse(raw, Ntmin, Ntmax, ntype):
     """
     Parameters
     ----------
     raw : mne.raw structure
         full raw meg file, ex. "fif", from recording with raw.info["bads"] indicated
+    Ntmin, Ntmax: int or 'None'
+        baseline period to calculate noise covariance
+    ntype: string
+        'E' for Emprical sensor noise covariance
+        'OTP' for estimating sensor noise covariance using OTP
+    
     
     Returns
     -------
@@ -83,17 +94,23 @@ def fosters_inverse(raw, Ntmin, Ntmax):
         Maxwell Filtering/SSS preprocessing has occured. Channels marked "bad" 
         are dropped
     """
+    
     ## calculate sensor noise covariance
-    N = mne.compute_raw_covariance(raw,Ntmin,Ntmax,rank="info",method='empirical')["data"]
-    ## drop bad channels 
-    bads = raw.info["bads"]
-    raw.drop_channels(bads)
+    if ntype=='E':
+        #N = mne.compute_raw_covariance(raw,tmin=0,tmax=10,rank="info",method='empirical')["data"]
+        N = mne.compute_raw_covariance(raw,rank="info",method='empirical')["data"]
+    if ntype =='OTP':
+        ## calculate N using OTP method
+        raw_otp = mne.preprocessing.oversampled_temporal_projection(raw, duration = 100)
+        diff = raw.get_data(picks='meg') - raw_otp.get_data(picks='meg')
+        del raw_otp
+        N = sklearn.covariance.empirical_covariance(np.transpose(diff))  
     ## create data strcutre, indicates in "info" that some preprocessing akin to SSS has happened
     raw_fos = mne.preprocessing.maxwell_filter(raw, origin=(0.,0.,0.), int_order=8, ext_order=3, calibration=None, coord_frame='meg', regularize='in', ignore_ref=True, bad_condition='error', mag_scale=100.0, extended_proj=(), verbose=None)  # just to get the info to indicate some Maxwell filtering was done etc.
     assert raw.info["bads"] == [] # double check bads were dropped
     
     ## Do foster's inverse!
-    foster_sss_data= _do_inverse(raw, N)
+    foster_sss_data= _do_inverse(raw, N, ntype)
     
     ## isolate MEG channels 
     meg_picks = mne.pick_types(raw.info, meg=True)
@@ -119,12 +136,14 @@ if __name__ == '__main__':
     
     ## high and low - pass raw data
     freq_min = 0.1
-    freq_max = 50
-    Ntmin = None
-    Ntmax = None
+    freq_max = 80
     raw.load_data().filter(l_freq=freq_min, h_freq=freq_max)
 
     ## call Foster's inverse
+    Ntype='E' # for empirical covariance, cal also be 'OTP'
+    # Change Ntmin,Ntmax to match baseline period length in raw data
+    Ntmin = None
+    Ntmax = None
     raw_fos = fosters_inverse(raw,Ntmin,Ntmax)
     
     ## calculate and plot evoked 
@@ -132,7 +151,7 @@ if __name__ == '__main__':
     tmax = 0.4  # end of each epoch (400ms after the trigger)
     epochs = mne.Epochs(raw_fos, events, tmin=tmin, tmax=tmax, baseline=None, preload=True)
     evoked = epochs.average()
-    fig = evoked.plot_joint(times=[0.047,0.1], title="Low-Pass 50 Hz, Foster's Inverse")
+    fig = evoked.plot_joint(title="Low-Pass 50 Hz, Foster's Inverse")
 
     
     
