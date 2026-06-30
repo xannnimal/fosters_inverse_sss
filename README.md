@@ -4,7 +4,8 @@ Adapting Signal Space Separation (SSS) to account for the impacts of sensor nois
 ## Parameters
 Input `raw`
 * `mne.raw` structure
-* full raw MEG data file (ex. `.fif` format) from recording with `raw.info["bads"]` properly marked
+* full raw MEG data file (ex. `.fif` format) from recording
+* Type of sensor noise covariance to use: emprical through `mne.compute_raw_covariance` or novel method using OTP to isolate sensor noise `mne.preprocessing.oversampled_temporal_projection`
 
 Output `fos_raw`
 * `mne.raw` structure
