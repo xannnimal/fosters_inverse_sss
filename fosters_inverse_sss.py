@@ -101,7 +101,7 @@ def fosters_inverse(raw, Ntmin, Ntmax, ntype):
         N = mne.compute_raw_covariance(raw,rank="info",method='empirical')["data"]
     if ntype =='OTP':
         ## calculate N using OTP method
-        raw_otp = mne.preprocessing.oversampled_temporal_projection(raw, duration = 100)
+        raw_otp = mne.preprocessing.oversampled_temporal_projection(raw, duration = 10)
         diff = raw.get_data(picks='meg') - raw_otp.get_data(picks='meg')
         del raw_otp
         N = sklearn.covariance.empirical_covariance(np.transpose(diff))  
