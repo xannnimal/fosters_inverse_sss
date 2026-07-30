@@ -1,4 +1,6 @@
 # Foster's Inverse for SSS
+Implementation of the MEG data preprocessing method derived and validated in [Noise Optimization of Basic Signal Component Extraction for Cryogenic and On-Scalp Magnetoencephalography (MEG)](https://www.biorxiv.org/content/10.64898/2026.07.21.739883v1), McPherson et al. July 2026
+
 Adapting Signal Space Separation (SSS) to account for the impacts of sensor noise by weighting the inverse of the SSS matrix, resulting in a stable and accurate estimate of the multipole moments used to reconstruct the internal OPM-MEG data
 
 ## Parameters
