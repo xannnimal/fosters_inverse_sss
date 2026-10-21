@@ -1,0 +1,6 @@
+mne
+numpy
+scipy
+scikit-learn
+matplotlib
+pytest
